@@ -1,0 +1,1 @@
+enum RightTab { browser, playlist }
