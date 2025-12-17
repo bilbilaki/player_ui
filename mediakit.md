@@ -575,7 +575,7 @@ await player.previous();
 ```dart
 await player.jump(5);
 ```
-
+/// for me subtitle audio and subtitle track
 ### Select video, audio or subtitle track
 
 A media source may contain multiple video, audio or subtitle tracks e.g. for multiple languages. Available video, audio or subtitle tracks are notified through `Player`'s state. See ["Handle playback events" section](#handle-playback-events) for related information.
@@ -726,7 +726,7 @@ class _MyScreenState extends State<MyScreen> {
   }
 }
 ```
-
+/// for me Hw Sw
 The video playback uses [hardware acceleration](https://en.wikipedia.org/wiki/Hardware_acceleration) _i.e._ GPU by default.
 
 Additional options may be provided using the `configuration` argument in the constructor. In general situations, you will never require this.
@@ -744,7 +744,7 @@ final VideoController player = VideoController(
   ),
 );
 ```
-
+// for me taking screenshot 
 ### Capture screenshot
 
 The `screenshot` method takes the snapshot of the current video frame & returns encoded image bytes as `Uint8List`.
@@ -758,6 +758,7 @@ Additionally `format` argument may be specified to change the encoding format. F
 - `image/jpeg`: Returns a JPEG encoded image.
 - `image/png`: Returns a PNG encoded image.
 - `null`: Returns BGRA pixel buffer.
+/// for me subtitle customize info
 
 ### Customize subtitles
 
@@ -787,7 +788,7 @@ Video(
 https://user-images.githubusercontent.com/28951144/253067794-73b5ca5d-e90d-4892-bc09-2a80f05c9f0b.mp4
 
 ### Load external subtitle track
-
+/// for me openning external Subtitle file 
 The `SubtitleTrack.uri` constructor can be used to load external subtitle track **with URI** e.g. SRT, WebVTT etc. The code is easier to understand:
 
 ```dart
@@ -844,7 +845,7 @@ Simply for <u>everyone</u>
   ),
 );
 ```
-
+// for me loading external audio file 
 ### Load external audio track
 
 The `AudioTrack.uri` constructor can be used to load external audio track **with URI**. The code is easier to understand:

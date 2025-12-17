@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_context_menu/flutter_context_menu.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
@@ -25,6 +26,7 @@ part '../widgets/EmptyHint.dart';
 part '../widgets/BottomControls.dart';
 part '../widgets/CtlButtons.dart';
 part '../intents/Intents.dart';
+part '../widgets/ContextMenu.dart';
 
 class PlayerHomePage extends StatefulWidget {
   const PlayerHomePage({super.key});
@@ -248,11 +250,162 @@ class _PlayerHomePageState extends State<PlayerHomePage> {
     await _player.seek(target);
   }
 
+  // Context menu handlers
+  Future<void> _openSubtitleFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const <String>['srt', 'vtt', 'ass', 'ssa', 'sub'],
+    );
+
+    if (result == null || result.files.isEmpty) return;
+    final path = result.files.first.path;
+    if (path == null || path.isEmpty) return;
+
+    // Only load subtitle if a video is currently playing
+    if (_currentIndex >= 0) {
+      await _player.setSubtitleTrack(
+        SubtitleTrack.uri(path, title: result.files.first.name),
+      );
+    }
+  }
+
+  Future<void> _openAudioFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const <String>[
+        'mp3',
+        'flac',
+        'wav',
+        'aac',
+        'm4a',
+        'ogg',
+        'opus',
+      ],
+    );
+
+    if (result == null || result.files.isEmpty) return;
+    final path = result.files.first.path;
+    if (path == null || path.isEmpty) return;
+
+    // Only load audio if a video is currently playing
+    if (_currentIndex >= 0) {
+      await _player.setAudioTrack(
+        AudioTrack.uri(path, title: result.files.first.name),
+      );
+    }
+  }
+
+  Future<void> _takeScreenshot() async {
+    try {
+      final screenshot = await _player.screenshot();
+      if (screenshot == null) return;
+
+      // Determine save directory based on platform
+      String saveDir;
+      if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+        // Desktop: save to app folder/screenshot
+        saveDir = '${Directory.current.path}/screenshot';
+      } else {
+        // Mobile: save to Pictures/playerScreenshot
+        // Note: On mobile, you'd need path_provider package for proper implementation
+        saveDir = '/storage/emulated/0/Pictures/playerScreenshot';
+      }
+
+      // Create directory if it doesn't exist
+      final dir = Directory(saveDir);
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+
+      // Generate filename with timestamp
+      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+      final filename = 'screenshot_$timestamp.png';
+      final file = File('$saveDir/$filename');
+
+      // Save the screenshot
+      await file.writeAsBytes(screenshot);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Screenshot saved to: ${file.path}'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save screenshot: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _customizeSubtitle() async {
+    // Show a dialog for customizing subtitles
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Customize Subtitles'),
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Subtitle customization dialog will be implemented here.',
+                style: TextStyle(fontSize: 14),
+              ),
+              SizedBox(height: 16),
+              Text(
+                'This would include options for:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text('• Font size'),
+              Text('• Font color'),
+              Text('• Background color'),
+              Text('• Text alignment'),
+              Text('• Padding'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<SubtitleTrack> _getSubtitleTracks() {
+    return _player.state.tracks.subtitle;
+  }
+
+  List<AudioTrack> _getAudioTracks() {
+    return _player.state.tracks.audio;
+  }
+
+  Future<void> _selectSubtitleTrack(SubtitleTrack track) async {
+    await _player.setSubtitleTrack(track);
+  }
+
+  Future<void> _selectAudioTrack(AudioTrack track) async {
+    await _player.setAudioTrack(track);
+  }
+
   String get _windowTitle {
     if (_currentIndex >= 0 && _currentIndex < _playlist.length) {
       return '${_currentIndex + 1}/${_playlist.length}  ${_playlist[_currentIndex].title}';
     }
-    return 'PotPlayer UI (Flutter)';
+    return 'Media Player';
   }
 
   @override
@@ -329,6 +482,16 @@ class _PlayerHomePageState extends State<PlayerHomePage> {
                         child: _VideoPane(
                           videoController: _videoController,
                           title: _windowTitle,
+                          onOpenFile: _openFiles,
+                          onOpenFolder: _openFolder,
+                          onOpenSubtitle: _openSubtitleFile,
+                          onOpenAudio: _openAudioFile,
+                          onTakeScreenshot: _takeScreenshot,
+                          onCustomizeSubtitle: _customizeSubtitle,
+                          getSubtitleTracks: _getSubtitleTracks,
+                          getAudioTracks: _getAudioTracks,
+                          onSelectSubtitleTrack: _selectSubtitleTrack,
+                          onSelectAudioTrack: _selectAudioTrack,
                         ),
                       ),
                       if (_rightPanelVisible)
