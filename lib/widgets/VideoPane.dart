@@ -14,6 +14,7 @@ class _VideoPane extends StatelessWidget {
     required this.getAudioTracks,
     required this.onSelectSubtitleTrack,
     required this.onSelectAudioTrack,
+    required this.subtitleConfig,
   });
 
   final VideoController videoController;
@@ -28,6 +29,7 @@ class _VideoPane extends StatelessWidget {
   final List<AudioTrack> Function() getAudioTracks;
   final Function(SubtitleTrack) onSelectSubtitleTrack;
   final Function(AudioTrack) onSelectAudioTrack;
+  final SubtitleConfig subtitleConfig;
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +42,11 @@ class _VideoPane extends StatelessWidget {
               child: Video(
                 controller: videoController,
                 controls: NoVideoControls,
+                subtitleViewConfiguration: SubtitleViewConfiguration(
+                  style: subtitleConfig.toTextStyle(),
+                  textAlign: subtitleConfig.textAlign,
+                  padding: subtitleConfig.padding,
+                ),
               ),
             ),
             Positioned(
