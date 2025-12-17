@@ -18,6 +18,7 @@ class _BottomControls extends StatefulWidget {
     required this.onOpenFolder,
     required this.onSeekRelative,
     required this.onVolumeChanged,
+    required this.onToggleFullscreen,
   });
 
   final Duration position;
@@ -37,6 +38,7 @@ class _BottomControls extends StatefulWidget {
 
   final VoidCallback onOpenFiles;
   final VoidCallback onOpenFolder;
+  final VoidCallback onToggleFullscreen;
 
   final ValueChanged<Duration> onSeekRelative;
   final ValueChanged<double> onVolumeChanged;
@@ -181,6 +183,12 @@ class _BottomControlsState extends State<_BottomControls> {
                     ),
                   ],
                   const Spacer(),
+                  _CtlButton(
+                    icon: Icons.fullscreen_rounded,
+                    tooltip: 'Fullscreen',
+                    onTap: widget.onToggleFullscreen,
+                  ),
+                  SizedBox(width: AppTheme.spaceMOf(context)),
                   if (volumeExpanded) ...[
                     _CtlButton(
                       icon: Icons.volume_up_rounded,

@@ -1,6 +1,6 @@
 part of '../ui/player_home_page.dart';
 
-class _VideoPane extends StatelessWidget {
+class _VideoPane extends StatefulWidget {
   const _VideoPane({
     required this.videoController,
     required this.title,
@@ -15,7 +15,7 @@ class _VideoPane extends StatelessWidget {
     required this.onSelectSubtitleTrack,
     required this.onSelectAudioTrack,
     required this.subtitleConfig,
-    required this.vidKey
+    required this.vidKey,
   });
 
   final VideoController videoController;
@@ -34,6 +34,16 @@ class _VideoPane extends StatelessWidget {
   final Key vidKey;
 
   @override
+  State<_VideoPane> createState() => _VideoPaneState();
+}
+
+class _VideoPaneState extends State<_VideoPane> {
+  double _startVolume = 0.0;
+  double _startBrightness = 0.0;
+  bool _isVolumeControl = false;
+  Duration _seekStartPosition = Duration.zero;
+
+  @override
   Widget build(BuildContext context) {
     return Container(
       color: AppTheme.videoPaneBackground,
@@ -42,59 +52,88 @@ class _VideoPane extends StatelessWidget {
           children: <Widget>[
             Positioned.fill(
               child: Video(
-                key: vidKey,
-                controller: videoController,
+                key: widget.vidKey,
+                controller: widget.videoController,
                 controls: NoVideoControls,
                 subtitleViewConfiguration: SubtitleViewConfiguration(
-                  style: subtitleConfig.toTextStyle(),
-                  textAlign: subtitleConfig.textAlign,
-                  padding: subtitleConfig.padding,
+                  style: widget.subtitleConfig.toTextStyle(),
+                  textAlign: widget.subtitleConfig.textAlign,
+                  padding: widget.subtitleConfig.padding,
                 ),
               ),
             ),
             Positioned.fill(
-      child: GestureDetector(
-        onVerticalDragUpdate: (details) async {
-          final double screenWidth = MediaQuery.of(context).size.width;
-          final double tapPosition = details.globalPosition.dx;
-          final double delta = details.primaryDelta ?? 0;
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onVerticalDragStart: (details) async {
+                  final double screenWidth = MediaQuery.of(context).size.width;
+                  if (details.globalPosition.dx < screenWidth / 2) {
+                    // Left side: Brightness
+                    _isVolumeControl = false;
+                    _startBrightness = await ScreenBrightness().current;
+                  } else {
+                    // Right side: Volume
+                    _isVolumeControl = true;
+                    _startVolume = widget.videoController.player.state.volume;
+                  }
+                },
+                onVerticalDragUpdate: (details) {
+                  final double delta = details.primaryDelta ?? 0;
+                  const double sensitivity = 1.0;
 
-          const double sensitivity = 1.0; 
+                  if (!_isVolumeControl) {
+                    // Brightness control (left side)
+                    double newBrightness =
+                        (_startBrightness - (delta / 300) * sensitivity).clamp(
+                          0.0,
+                          1.0,
+                        );
+                    ScreenBrightness().setApplicationScreenBrightness(
+                      newBrightness,
+                    );
+                    _startBrightness = newBrightness;
+                  } else {
+                    // Volume control (right side)
+                    double newVol = (_startVolume - (delta * sensitivity))
+                        .clamp(0.0, 100.0);
+                    widget.videoController.player.setVolume(newVol);
+                    _startVolume = newVol;
+                  }
+                },
+                onHorizontalDragStart: (details) {
+                  _seekStartPosition =
+                      widget.videoController.player.state.position;
+                },
+                onHorizontalDragUpdate: (details) {
+                  final Duration totalDur =
+                      widget.videoController.player.state.duration;
+                  final double seekSeconds = (details.primaryDelta ?? 0) / 5;
 
-          if (tapPosition < screenWidth / 2) {
-            double currentBrightness = await ScreenBrightness().current;
-            double newBrightness = (currentBrightness - (delta / 300) * sensitivity).clamp(0.0, 1.0);
-            await ScreenBrightness().setApplicationScreenBrightness(newBrightness);
-          } else {
-            double currentVol = videoController.player.state.volume;
-            double newVol = (currentVol - (delta * sensitivity)).clamp(0.0, 100.0);
-            await videoController.player.setVolume(newVol);
-          }
-        },
-        onHorizontalDragUpdate: (details) {
-          final Duration currentPos = videoController.player.state.position;
-          final Duration totalDur = videoController.player.state.duration;
-          
-          final double seekSeconds = (details.primaryDelta ?? 0) / 5; 
-          
-          final Duration newPos = currentPos + Duration(seconds: seekSeconds.toInt());
-          
-          if (newPos >= Duration.zero && newPos <= totalDur) {
-             videoController.player.seek(newPos);
-          }
-        },
-        onDoubleTapDown: (details) {
-             final double screenWidth = MediaQuery.of(context).size.width;
-             if (details.globalPosition.dx < screenWidth / 2) {
-                 final pos = videoController.player.state.position - const Duration(seconds: 10);
-                 videoController.player.seek(pos);
-             } else {
-                 final pos = videoController.player.state.position + const Duration(seconds: 10);
-                 videoController.player.seek(pos);
-             }
-        },
-      ),
-    ),
+                  final Duration newPos =
+                      _seekStartPosition +
+                      Duration(seconds: seekSeconds.toInt());
+
+                  if (newPos >= Duration.zero && newPos <= totalDur) {
+                    widget.videoController.player.seek(newPos);
+                    _seekStartPosition = newPos;
+                  }
+                },
+                onDoubleTapDown: (details) {
+                  final double screenWidth = MediaQuery.of(context).size.width;
+                  if (details.globalPosition.dx < screenWidth / 2) {
+                    final pos =
+                        widget.videoController.player.state.position -
+                        const Duration(seconds: 10);
+                    widget.videoController.player.seek(pos);
+                  } else {
+                    final pos =
+                        widget.videoController.player.state.position +
+                        const Duration(seconds: 10);
+                    widget.videoController.player.seek(pos);
+                  }
+                },
+              ),
+            ),
             Positioned(
               left: 12,
               bottom: 10,
@@ -104,13 +143,7 @@ class _VideoPane extends StatelessWidget {
                   vertical: AppTheme.spaceXSOf(context),
                 ),
                 decoration: AppTheme.videoPaneOverlayDecoration,
-                child: 
-                IconButton(onPressed: () => toggleFullScreen(), icon: Icon(
-                  Icons.fullscreen,
-                  color: AppTheme.videoPaneWatermarkColor,
-                  size: 16,
-                )),
-              //  const Text('', style: AppTheme.videoPaneWatermarkStyle),
+                child: const Text('', style: AppTheme.videoPaneWatermarkStyle),
               ),
             ),
             Positioned(
@@ -123,7 +156,7 @@ class _VideoPane extends StatelessWidget {
                 ),
                 decoration: AppTheme.videoPaneTitleDecoration,
                 child: Text(
-                  title,
+                  widget.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 12),
@@ -132,16 +165,16 @@ class _VideoPane extends StatelessWidget {
             ),
           ],
         ),
-        onOpenFile: onOpenFile,
-        onOpenFolder: onOpenFolder,
-        onOpenSubtitle: onOpenSubtitle,
-        onOpenAudio: onOpenAudio,
-        onTakeScreenshot: onTakeScreenshot,
-        onCustomizeSubtitle: onCustomizeSubtitle,
-        getSubtitleTracks: getSubtitleTracks,
-        getAudioTracks: getAudioTracks,
-        onSelectSubtitleTrack: onSelectSubtitleTrack,
-        onSelectAudioTrack: onSelectAudioTrack,
+        onOpenFile: widget.onOpenFile,
+        onOpenFolder: widget.onOpenFolder,
+        onOpenSubtitle: widget.onOpenSubtitle,
+        onOpenAudio: widget.onOpenAudio,
+        onTakeScreenshot: widget.onTakeScreenshot,
+        onCustomizeSubtitle: widget.onCustomizeSubtitle,
+        getSubtitleTracks: widget.getSubtitleTracks,
+        getAudioTracks: widget.getAudioTracks,
+        onSelectSubtitleTrack: widget.onSelectSubtitleTrack,
+        onSelectAudioTrack: widget.onSelectAudioTrack,
       ),
     );
   }
