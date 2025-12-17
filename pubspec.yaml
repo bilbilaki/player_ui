@@ -19,6 +19,7 @@ dependencies:
   media_kit_video: ^2.0.1 # For video rendering.
   permission_handler: ^12.0.1 # For handling Android permissions
   provider: ^6.0.5
+  screen_brightness: ^2.1.7
 
 dev_dependencies:
   flutter_lints: ^6.0.0

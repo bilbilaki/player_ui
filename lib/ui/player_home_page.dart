@@ -8,6 +8,7 @@ import 'package:flutter_context_menu/flutter_context_menu.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:provider/provider.dart';
+import 'package:screen_brightness/screen_brightness.dart';
 import '../adaptive/adaptive_layout_policy.dart';
 import '../adaptive/adaptive_theme_tokens.dart';
 import '../adaptive/breakpoints.dart';
@@ -36,6 +37,9 @@ part '../widgets/CtlButtons.dart';
 part '../intents/Intents.dart';
 part '../widgets/ContextMenu.dart';
 part '../widgets/SubtitleCustomizerDialog.dart';
+part '../functions/videoplayer_funcs.dart';
+
+final GlobalKey<VideoState> videoKey = GlobalKey<VideoState>();
 
 class PlayerHomePage extends StatefulWidget {
   const PlayerHomePage({super.key});
@@ -508,6 +512,7 @@ class _PlayerHomePageState extends State<PlayerHomePage> {
                           children: <Widget>[
                             Expanded(
                               child: _VideoPane(
+                                vidKey: videoKey,
                                 videoController: _videoController,
                                 title: _windowTitle,
                                 onOpenFile: _openFiles,
@@ -656,6 +661,7 @@ class _PlayerHomePageState extends State<PlayerHomePage> {
                           children: <Widget>[
                             Positioned.fill(
                               child: _VideoPane(
+                                vidKey: videoKey,
                                 videoController: _videoController,
                                 title: _windowTitle,
                                 onOpenFile: _openFiles,

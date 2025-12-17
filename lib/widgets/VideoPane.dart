@@ -15,6 +15,7 @@ class _VideoPane extends StatelessWidget {
     required this.onSelectSubtitleTrack,
     required this.onSelectAudioTrack,
     required this.subtitleConfig,
+    required this.vidKey
   });
 
   final VideoController videoController;
@@ -30,6 +31,7 @@ class _VideoPane extends StatelessWidget {
   final Function(SubtitleTrack) onSelectSubtitleTrack;
   final Function(AudioTrack) onSelectAudioTrack;
   final SubtitleConfig subtitleConfig;
+  final Key vidKey;
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +42,7 @@ class _VideoPane extends StatelessWidget {
           children: <Widget>[
             Positioned.fill(
               child: Video(
+                key: vidKey,
                 controller: videoController,
                 controls: NoVideoControls,
                 subtitleViewConfiguration: SubtitleViewConfiguration(
@@ -49,6 +52,49 @@ class _VideoPane extends StatelessWidget {
                 ),
               ),
             ),
+            Positioned.fill(
+      child: GestureDetector(
+        onVerticalDragUpdate: (details) async {
+          final double screenWidth = MediaQuery.of(context).size.width;
+          final double tapPosition = details.globalPosition.dx;
+          final double delta = details.primaryDelta ?? 0;
+
+          const double sensitivity = 1.0; 
+
+          if (tapPosition < screenWidth / 2) {
+            double currentBrightness = await ScreenBrightness().current;
+            double newBrightness = (currentBrightness - (delta / 300) * sensitivity).clamp(0.0, 1.0);
+            await ScreenBrightness().setApplicationScreenBrightness(newBrightness);
+          } else {
+            double currentVol = videoController.player.state.volume;
+            double newVol = (currentVol - (delta * sensitivity)).clamp(0.0, 100.0);
+            await videoController.player.setVolume(newVol);
+          }
+        },
+        onHorizontalDragUpdate: (details) {
+          final Duration currentPos = videoController.player.state.position;
+          final Duration totalDur = videoController.player.state.duration;
+          
+          final double seekSeconds = (details.primaryDelta ?? 0) / 5; 
+          
+          final Duration newPos = currentPos + Duration(seconds: seekSeconds.toInt());
+          
+          if (newPos >= Duration.zero && newPos <= totalDur) {
+             videoController.player.seek(newPos);
+          }
+        },
+        onDoubleTapDown: (details) {
+             final double screenWidth = MediaQuery.of(context).size.width;
+             if (details.globalPosition.dx < screenWidth / 2) {
+                 final pos = videoController.player.state.position - const Duration(seconds: 10);
+                 videoController.player.seek(pos);
+             } else {
+                 final pos = videoController.player.state.position + const Duration(seconds: 10);
+                 videoController.player.seek(pos);
+             }
+        },
+      ),
+    ),
             Positioned(
               left: 12,
               bottom: 10,
@@ -58,7 +104,13 @@ class _VideoPane extends StatelessWidget {
                   vertical: AppTheme.spaceXSOf(context),
                 ),
                 decoration: AppTheme.videoPaneOverlayDecoration,
-                child: const Text('', style: AppTheme.videoPaneWatermarkStyle),
+                child: 
+                IconButton(onPressed: () => toggleFullScreen(), icon: Icon(
+                  Icons.fullscreen,
+                  color: AppTheme.videoPaneWatermarkColor,
+                  size: 16,
+                )),
+              //  const Text('', style: AppTheme.videoPaneWatermarkStyle),
               ),
             ),
             Positioned(

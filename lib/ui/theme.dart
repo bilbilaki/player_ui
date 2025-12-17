@@ -10,7 +10,7 @@ class AppTheme {
   // Video Pane Colors
   static const Color videoPaneBackground = Color(0xFF05050A);
   static const Color videoPaneOverlayDark = Color(0xFF05050A);
-
+static const Color videoPaneWatermarkColor = Color.fromARGB(255, 200, 200, 200);  
   // Right Pane Colors
   static const Color rightPaneBackground = Color(0xFF0A0E12);
   static const Color rightPaneAccent = Color.fromARGB(255, 4, 0, 42);
