@@ -26,15 +26,18 @@ class _ListRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Container(
-        height: 34,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        height: AppTheme.listRowHeightOf(context),
+        padding: EdgeInsets.symmetric(horizontal: AppTheme.spaceLOf(context)),
         decoration: selected
             ? AppTheme.listItemSelectedDecoration(accent)
             : const BoxDecoration(),
         child: Row(
           children: <Widget>[
-            SizedBox(width: 20, child: Center(child: leading)),
-            const SizedBox(width: 8),
+            SizedBox(
+              width: AppTheme.iconSmallOf(context),
+              child: Center(child: leading),
+            ),
+            SizedBox(width: AppTheme.spaceMOf(context)),
             Expanded(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -61,7 +64,7 @@ class _ListRow extends StatelessWidget {
             InkWell(
               onTap: onTrailingTap ?? onTap,
               child: Padding(
-                padding: const EdgeInsets.all(6),
+                padding: EdgeInsets.all(AppTheme.spaceSOf(context)),
                 child: IconTheme(
                   data: IconThemeData(
                     color: Colors.white.withValues(alpha: 0.8),

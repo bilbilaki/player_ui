@@ -16,11 +16,11 @@ class _CtlButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = big
-        ? AppTheme.controlButtonSizeLarge
-        : AppTheme.controlButtonSizeSmall;
+        ? AppTheme.controlButtonSizeLargeOf(context)
+        : AppTheme.controlButtonSizeSmallOf(context);
     final iconSize = big
-        ? AppTheme.controlIconSizeLarge
-        : AppTheme.controlIconSizeSmall;
+        ? AppTheme.controlIconSizeLargeOf(context)
+        : AppTheme.controlIconSizeSmallOf(context);
     return Tooltip(
       message: tooltip,
       child: InkWell(

@@ -8,7 +8,10 @@ class _TitleBarPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: EdgeInsets.symmetric(
+        horizontal: AppTheme.spaceSOf(context),
+        vertical: AppTheme.spaceXSOf(context),
+      ),
       decoration: AppTheme.titleBarPillDecoration,
       child: Text(text, style: AppTheme.titleBarPillStyle),
     );

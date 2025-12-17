@@ -46,7 +46,10 @@ class _VideoPane extends StatelessWidget {
               left: 12,
               bottom: 10,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                padding: EdgeInsets.symmetric(
+                  horizontal: AppTheme.spaceSOf(context),
+                  vertical: AppTheme.spaceXSOf(context),
+                ),
                 decoration: AppTheme.videoPaneOverlayDecoration,
                 child: const Text('', style: AppTheme.videoPaneWatermarkStyle),
               ),
@@ -55,9 +58,9 @@ class _VideoPane extends StatelessWidget {
               left: 12,
               top: 10,
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
+                padding: EdgeInsets.symmetric(
+                  horizontal: AppTheme.spaceLOf(context),
+                  vertical: AppTheme.spaceSOf(context),
                 ),
                 decoration: AppTheme.videoPaneTitleDecoration,
                 child: Text(

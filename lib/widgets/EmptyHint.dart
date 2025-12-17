@@ -10,12 +10,12 @@ class _EmptyHint extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: EdgeInsets.all(AppTheme.spaceLOf(context) + 2),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Text(title, style: AppTheme.emptyStateTitleStyle),
-            const SizedBox(height: 10),
+            SizedBox(height: AppTheme.spaceLOf(context)),
             Text(
               body,
               textAlign: TextAlign.center,

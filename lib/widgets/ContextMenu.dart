@@ -199,7 +199,7 @@ class _ContextMenu extends StatelessWidget {
     return ContextMenuRegion(
       contextMenu: ContextMenu(
         entries: _buildMenuEntries(),
-        padding: const EdgeInsets.all(8.0),
+        padding: EdgeInsets.all(AppTheme.spaceSOf(context)),
       ),
       onItemSelected: (value) {
         debugPrint('Context menu item selected: $value');

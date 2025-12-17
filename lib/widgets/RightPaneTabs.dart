@@ -9,7 +9,7 @@ class RightTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 38,
+      height: AppTheme.rightPanelTabsHeightOf(context),
       child: Row(
         children: <Widget>[
           Expanded(

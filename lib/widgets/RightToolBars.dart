@@ -24,7 +24,7 @@ class _RightToolbar extends StatelessWidget {
         : 'Playlist';
 
     return Container(
-      height: 38,
+      height: AppTheme.spaceMOf(context) + AppTheme.spaceLOf(context) + 6,
       padding: AppTheme.rightPanePadding,
       decoration: AppTheme.rightTabsToolbarDecoration,
       child: Row(
@@ -32,11 +32,17 @@ class _RightToolbar extends StatelessWidget {
           IconButton(
             tooltip: 'Hide Panel',
             onPressed: onTogglePanel,
-            icon: const Icon(Icons.chevron_right_rounded, size: 18),
+            icon: Icon(
+              Icons.chevron_right_rounded,
+              size: AppTheme.iconMediumOf(context),
+            ),
             padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            constraints: BoxConstraints(
+              minWidth: AppTheme.controlButtonSizeSmallOf(context),
+              minHeight: AppTheme.controlButtonSizeSmallOf(context),
+            ),
           ),
-          const SizedBox(width: 4),
+          SizedBox(width: AppTheme.spaceXSOf(context)),
           Expanded(
             child: Text(
               label,
@@ -48,19 +54,28 @@ class _RightToolbar extends StatelessWidget {
           IconButton(
             tooltip: 'Open files  (Ctrl+O)',
             onPressed: onOpenFiles,
-            icon: const Icon(Icons.add_box_rounded, size: 18),
+            icon: Icon(
+              Icons.add_box_rounded,
+              size: AppTheme.iconMediumOf(context),
+            ),
           ),
           if (tab == RightTab.browser)
             IconButton(
               tooltip: 'Open folder  (Ctrl+F)',
               onPressed: onOpenFolder,
-              icon: const Icon(Icons.folder_open_rounded, size: 18),
+              icon: Icon(
+                Icons.folder_open_rounded,
+                size: AppTheme.iconMediumOf(context),
+              ),
             ),
           if (tab == RightTab.browser)
             IconButton(
               tooltip: 'Refresh folder',
               onPressed: onRefreshFolder,
-              icon: const Icon(Icons.refresh_rounded, size: 18),
+              icon: Icon(
+                Icons.refresh_rounded,
+                size: AppTheme.iconMediumOf(context),
+              ),
             ),
         ],
       ),

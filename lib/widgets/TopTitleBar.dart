@@ -14,12 +14,15 @@ class _TopTitleBar extends StatelessWidget {
       child: Row(
         children: <Widget>[
           Container(
-            width: 18,
-            height: 18,
+            width: AppTheme.iconMediumOf(context),
+            height: AppTheme.iconMediumOf(context),
             decoration: AppTheme.titleBarIconBoxDecoration,
-            child: const Icon(Icons.play_arrow_rounded, size: 14),
+            child: Icon(
+              Icons.play_arrow_rounded,
+              size: AppTheme.iconSmallOf(context),
+            ),
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: AppTheme.spaceLOf(context)),
           Expanded(
             child: Text(
               title,
@@ -28,11 +31,11 @@ class _TopTitleBar extends StatelessWidget {
               style: AppTheme.titleBarTitleStyle,
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: AppTheme.spaceLOf(context)),
           _TitleBarPill(text: 'SW'),
-          const SizedBox(width: 6),
+          SizedBox(width: AppTheme.spaceSOf(context)),
           _TitleBarPill(text: 'AVC1'),
-          const SizedBox(width: 6),
+          SizedBox(width: AppTheme.spaceSOf(context)),
           _TitleBarPill(text: 'AAC'),
         ],
       ),

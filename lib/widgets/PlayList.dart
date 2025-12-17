@@ -25,8 +25,8 @@ class _PlaylistList extends StatelessWidget {
     return ListView.separated(
       itemCount: items.length,
       separatorBuilder: (_, __) => Divider(
-        height: 1,
-        thickness: 1,
+        height: AppTheme.spaceXSOf(context) / 2,
+        thickness: AppTheme.spaceXSOf(context) / 4,
         color: Colors.black.withValues(alpha: 0.18),
       ),
       itemBuilder: (context, i) {

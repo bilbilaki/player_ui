@@ -7,11 +7,16 @@ import 'package:flutter/services.dart';
 import 'package:flutter_context_menu/flutter_context_menu.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+import 'package:provider/provider.dart';
+import '../adaptive/adaptive_layout_policy.dart';
+import '../adaptive/breakpoints.dart';
 
 import '../models/MediaEntry.dart';
 import '../models/enums.dart';
 import 'format.dart';
 import 'theme.dart';
+import '../state/player_ui_layout_state.dart';
+import '../services/screenshot_service.dart';
 part '../widgets/TopTitleBar.dart';
 part '../widgets/TitleBarPill.dart';
 part '../widgets/VideoPane.dart';
@@ -42,7 +47,7 @@ class _PlayerHomePageState extends State<PlayerHomePage> {
   final List<MediaEntry> _playlist = <MediaEntry>[];
   int _currentIndex = -1;
 
-  RightTab _tab = RightTab.playlist;
+  // Tab state moved to PlayerUiLayoutState
 
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
@@ -53,9 +58,9 @@ class _PlayerHomePageState extends State<PlayerHomePage> {
   double _dragValue = 0;
 
   // Right panel state
-  bool _rightPanelVisible = true;
-  double _rightPanelWidth = 360;
+  // Moved to PlayerUiLayoutState provider
   bool _isResizingPanel = false;
+  bool _layoutDefaultsApplied = false;
 
   String? _browserDirectory;
   List<MediaEntry> _browserItems = const <MediaEntry>[];
@@ -123,8 +128,9 @@ class _PlayerHomePageState extends State<PlayerHomePage> {
 
     setState(() {
       _playlist.addAll(picked.map((p) => MediaEntry(path: p)));
-      _tab = RightTab.playlist;
     });
+    if (!mounted) return;
+    context.read<PlayerUiLayoutState>().setTab(RightTab.playlist);
 
     if (_currentIndex < 0 && _playlist.isNotEmpty) {
       await _playIndex(0);
@@ -137,8 +143,9 @@ class _PlayerHomePageState extends State<PlayerHomePage> {
 
     setState(() {
       _browserDirectory = dir;
-      _tab = RightTab.browser;
     });
+    if (!mounted) return;
+    context.read<PlayerUiLayoutState>().setTab(RightTab.browser);
 
     await _refreshBrowserListing();
   }
@@ -203,9 +210,9 @@ class _PlayerHomePageState extends State<PlayerHomePage> {
   Future<void> _playFromBrowser(MediaEntry entry) async {
     setState(() {
       _playlist.add(entry);
-      _tab = RightTab.playlist;
       _currentIndex = _playlist.length - 1;
     });
+    context.read<PlayerUiLayoutState>().setTab(RightTab.playlist);
 
     await _player.open(Media(entry.path), play: true);
   }
@@ -300,38 +307,26 @@ class _PlayerHomePageState extends State<PlayerHomePage> {
       final screenshot = await _player.screenshot();
       if (screenshot == null) return;
 
-      // Determine save directory based on platform
-      String saveDir;
-      if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-        // Desktop: save to app folder/screenshot
-        saveDir = '${Directory.current.path}/screenshot';
-      } else {
-        // Mobile: save to Pictures/playerScreenshot
-        // Note: On mobile, you'd need path_provider package for proper implementation
-        saveDir = '/storage/emulated/0/Pictures/playerScreenshot';
-      }
-
-      // Create directory if it doesn't exist
-      final dir = Directory(saveDir);
-      if (!await dir.exists()) {
-        await dir.create(recursive: true);
-      }
-
-      // Generate filename with timestamp
-      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
-      final filename = 'screenshot_$timestamp.png';
-      final file = File('$saveDir/$filename');
-
-      // Save the screenshot
-      await file.writeAsBytes(screenshot);
+      // Use screenshot service to handle platform-specific logic
+      final service = const ScreenshotService();
+      final savedPath = await service.saveScreenshot(screenshot);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Screenshot saved to: ${file.path}'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        if (savedPath != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Screenshot saved to: $savedPath'),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Screenshot save not supported on this platform'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -465,6 +460,19 @@ class _PlayerHomePageState extends State<PlayerHomePage> {
       ),
     };
 
+    final layout = context.watch<PlayerUiLayoutState>();
+    final policy = context.layoutPolicy;
+
+    // Apply default right panel width from policy once on first build.
+    if (!_layoutDefaultsApplied) {
+      layout.setRightPanelWidthBounds(
+        policy.minRightPaneWidth,
+        policy.maxRightPaneWidth,
+      );
+      layout.setPanelWidth(policy.defaultRightPaneWidth);
+      _layoutDefaultsApplied = true;
+    }
+
     return Shortcuts(
       shortcuts: shortcuts,
       child: Actions(
@@ -476,186 +484,329 @@ class _PlayerHomePageState extends State<PlayerHomePage> {
               children: <Widget>[
                 _TopTitleBar(title: _windowTitle),
                 Expanded(
-                  child: Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: _VideoPane(
-                          videoController: _videoController,
-                          title: _windowTitle,
-                          onOpenFile: _openFiles,
-                          onOpenFolder: _openFolder,
-                          onOpenSubtitle: _openSubtitleFile,
-                          onOpenAudio: _openAudioFile,
-                          onTakeScreenshot: _takeScreenshot,
-                          onCustomizeSubtitle: _customizeSubtitle,
-                          getSubtitleTracks: _getSubtitleTracks,
-                          getAudioTracks: _getAudioTracks,
-                          onSelectSubtitleTrack: _selectSubtitleTrack,
-                          onSelectAudioTrack: _selectAudioTrack,
-                        ),
-                      ),
-                      if (_rightPanelVisible)
-                        GestureDetector(
-                          onHorizontalDragStart: (details) {
-                            setState(() => _isResizingPanel = true);
-                          },
-                          onHorizontalDragUpdate: (details) {
-                            setState(() {
-                              _rightPanelWidth =
-                                  (_rightPanelWidth - details.delta.dx).clamp(
-                                    280.0,
-                                    600.0,
-                                  );
-                            });
-                          },
-                          onHorizontalDragEnd: (details) {
-                            setState(() => _isResizingPanel = false);
-                          },
-                          child: Container(
-                            width: 4,
-                            color: Colors.transparent,
-                            child: MouseRegion(
-                              cursor: SystemMouseCursors.resizeColumn,
-                              child: Container(
-                                width: 2,
-                                margin: const EdgeInsets.symmetric(
-                                  horizontal: 1,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.1),
-                                  boxShadow: _isResizingPanel
-                                      ? [
-                                          BoxShadow(
-                                            color: AppTheme
-                                                .rightPaneBorderLeftAccent
-                                                .withValues(alpha: 0.5),
-                                            blurRadius: 4,
-                                          ),
-                                        ]
-                                      : null,
-                                ),
+                  child: policy.panelMode == RightPanelMode.docked
+                      ? Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: _VideoPane(
+                                videoController: _videoController,
+                                title: _windowTitle,
+                                onOpenFile: _openFiles,
+                                onOpenFolder: _openFolder,
+                                onOpenSubtitle: _openSubtitleFile,
+                                onOpenAudio: _openAudioFile,
+                                onTakeScreenshot: _takeScreenshot,
+                                onCustomizeSubtitle: _customizeSubtitle,
+                                getSubtitleTracks: _getSubtitleTracks,
+                                getAudioTracks: _getAudioTracks,
+                                onSelectSubtitleTrack: _selectSubtitleTrack,
+                                onSelectAudioTrack: _selectAudioTrack,
                               ),
                             ),
-                          ),
-                        ),
-                      if (_rightPanelVisible)
-                        SizedBox(
-                          width: _rightPanelWidth,
-                          child: _RightPane(
-                            tab: _tab,
-                            onTabChanged: (t) => setState(() => _tab = t),
-                            browserDirectory: _browserDirectory,
-                            browserItems: _browserItems,
-                            playlist: _playlist,
-                            currentIndex: _currentIndex,
-                            onOpenFiles: _openFiles,
-                            onOpenFolder: _openFolder,
-                            onRefreshFolder: _refreshBrowserListing,
-                            onPlayFromBrowser: _playFromBrowser,
-                            onPlayIndex: _playIndex,
-                            onRemoveAt: (i) {
-                              setState(() {
-                                if (i < 0 || i >= _playlist.length) return;
-                                _playlist.removeAt(i);
-                                if (_playlist.isEmpty) {
-                                  _currentIndex = -1;
-                                } else if (_currentIndex >= _playlist.length) {
-                                  _currentIndex = _playlist.length - 1;
-                                } else if (i == _currentIndex) {
-                                  _currentIndex = _currentIndex.clamp(
-                                    0,
-                                    _playlist.length - 1,
+                            if (layout.rightPanelVisible &&
+                                policy.enablePanelResize)
+                              GestureDetector(
+                                onHorizontalDragStart: (details) {
+                                  setState(() => _isResizingPanel = true);
+                                },
+                                onHorizontalDragUpdate: (details) {
+                                  layout.setPanelWidth(
+                                    (layout.rightPanelWidth - details.delta.dx),
                                   );
-                                }
-                              });
-                            },
-                            onTogglePanel: () {
-                              setState(
-                                () => _rightPanelVisible = !_rightPanelVisible,
-                              );
-                            },
-                          ),
-                        ),
-                      if (!_rightPanelVisible)
-                        Container(
-                          width: 40,
-                          decoration: BoxDecoration(
-                            color: AppTheme.rightPaneBackground,
-                            border: Border(
-                              left: BorderSide(
-                                color: AppTheme.rightPaneBorderLeftAccent
-                                    .withValues(alpha: 0.5),
-                                width: 2,
-                              ),
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              const SizedBox(height: 8),
-                              Tooltip(
-                                message: 'Show Panel',
-                                child: InkWell(
-                                  onTap: () {
-                                    setState(() => _rightPanelVisible = true);
-                                  },
-                                  child: Container(
-                                    width: 32,
-                                    height: 32,
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.tabPlaylistActive
-                                          .withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                        color: AppTheme.tabPlaylistActive
-                                            .withValues(alpha: 0.4),
+                                },
+                                onHorizontalDragEnd: (details) {
+                                  setState(() => _isResizingPanel = false);
+                                },
+                                child: Container(
+                                  width: 4,
+                                  color: Colors.transparent,
+                                  child: MouseRegion(
+                                    cursor: SystemMouseCursors.resizeColumn,
+                                    child: Container(
+                                      width: 2,
+                                      margin: const EdgeInsets.symmetric(
+                                        horizontal: 1,
                                       ),
-                                    ),
-                                    child: const Icon(
-                                      Icons.chevron_left_rounded,
-                                      size: 20,
-                                      color: Colors.white,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                        boxShadow: _isResizingPanel
+                                            ? [
+                                                BoxShadow(
+                                                  color: AppTheme
+                                                      .rightPaneBorderLeftAccent
+                                                      .withValues(alpha: 0.5),
+                                                  blurRadius: 4,
+                                                ),
+                                              ]
+                                            : null,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ],
-                          ),
+                            if (layout.rightPanelVisible)
+                              SizedBox(
+                                width: layout.rightPanelWidth,
+                                child: _RightPane(
+                                  tab: layout.tab,
+                                  onTabChanged: (t) => layout.setTab(t),
+                                  browserDirectory: _browserDirectory,
+                                  browserItems: _browserItems,
+                                  playlist: _playlist,
+                                  currentIndex: _currentIndex,
+                                  onOpenFiles: _openFiles,
+                                  onOpenFolder: _openFolder,
+                                  onRefreshFolder: _refreshBrowserListing,
+                                  onPlayFromBrowser: _playFromBrowser,
+                                  onPlayIndex: _playIndex,
+                                  onRemoveAt: (i) {
+                                    setState(() {
+                                      if (i < 0 || i >= _playlist.length)
+                                        return;
+                                      _playlist.removeAt(i);
+                                      if (_playlist.isEmpty) {
+                                        _currentIndex = -1;
+                                      } else if (_currentIndex >=
+                                          _playlist.length) {
+                                        _currentIndex = _playlist.length - 1;
+                                      } else if (i == _currentIndex) {
+                                        _currentIndex = _currentIndex.clamp(
+                                          0,
+                                          _playlist.length - 1,
+                                        );
+                                      }
+                                    });
+                                  },
+                                  onTogglePanel: () => layout.togglePanel(),
+                                  overlayMode: false,
+                                ),
+                              ),
+                            if (!layout.rightPanelVisible)
+                              Container(
+                                width: 40,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.rightPaneBackground,
+                                  border: Border(
+                                    left: BorderSide(
+                                      color: AppTheme.rightPaneBorderLeftAccent
+                                          .withValues(alpha: 0.5),
+                                      width: 2,
+                                    ),
+                                  ),
+                                ),
+                                child: Column(
+                                  children: [
+                                    const SizedBox(height: 8),
+                                    Tooltip(
+                                      message: 'Show Panel',
+                                      child: InkWell(
+                                        onTap: () {
+                                          layout.setPanelVisible(true);
+                                        },
+                                        child: Container(
+                                          width: 32,
+                                          height: 32,
+                                          decoration: BoxDecoration(
+                                            color: AppTheme.tabPlaylistActive
+                                                .withValues(alpha: 0.2),
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                            border: Border.all(
+                                              color: AppTheme.tabPlaylistActive
+                                                  .withValues(alpha: 0.4),
+                                            ),
+                                          ),
+                                          child: const Icon(
+                                            Icons.chevron_left_rounded,
+                                            size: 20,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        )
+                      : Stack(
+                          children: <Widget>[
+                            Positioned.fill(
+                              child: _VideoPane(
+                                videoController: _videoController,
+                                title: _windowTitle,
+                                onOpenFile: _openFiles,
+                                onOpenFolder: _openFolder,
+                                onOpenSubtitle: _openSubtitleFile,
+                                onOpenAudio: _openAudioFile,
+                                onTakeScreenshot: _takeScreenshot,
+                                onCustomizeSubtitle: _customizeSubtitle,
+                                getSubtitleTracks: _getSubtitleTracks,
+                                getAudioTracks: _getAudioTracks,
+                                onSelectSubtitleTrack: _selectSubtitleTrack,
+                                onSelectAudioTrack: _selectAudioTrack,
+                              ),
+                            ),
+                            if (layout.rightPanelVisible)
+                              Positioned.fill(
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: () => layout.setPanelVisible(false),
+                                  child: Container(
+                                    color: Colors.black.withValues(alpha: 0.35),
+                                  ),
+                                ),
+                              ),
+                            if (layout.rightPanelVisible)
+                              Positioned(
+                                top: 0,
+                                right: 0,
+                                bottom: 0,
+                                child: SizedBox(
+                                  width: layout.rightPanelWidth,
+                                  child: _RightPane(
+                                    tab: layout.tab,
+                                    onTabChanged: (t) => layout.setTab(t),
+                                    browserDirectory: _browserDirectory,
+                                    browserItems: _browserItems,
+                                    playlist: _playlist,
+                                    currentIndex: _currentIndex,
+                                    onOpenFiles: _openFiles,
+                                    onOpenFolder: _openFolder,
+                                    onRefreshFolder: _refreshBrowserListing,
+                                    onPlayFromBrowser: _playFromBrowser,
+                                    onPlayIndex: _playIndex,
+                                    onRemoveAt: (i) {
+                                      setState(() {
+                                        if (i < 0 || i >= _playlist.length)
+                                          return;
+                                        _playlist.removeAt(i);
+                                        if (_playlist.isEmpty) {
+                                          _currentIndex = -1;
+                                        } else if (_currentIndex >=
+                                            _playlist.length) {
+                                          _currentIndex = _playlist.length - 1;
+                                        } else if (i == _currentIndex) {
+                                          _currentIndex = _currentIndex.clamp(
+                                            0,
+                                            _playlist.length - 1,
+                                          );
+                                        }
+                                      });
+                                    },
+                                    onTogglePanel: () => layout.togglePanel(),
+                                    overlayMode: true,
+                                  ),
+                                ),
+                              ),
+                            if (!layout.rightPanelVisible)
+                              Positioned(
+                                top: 8,
+                                right: 4,
+                                child: Tooltip(
+                                  message: 'Show Panel',
+                                  child: InkWell(
+                                    onTap: () => layout.setPanelVisible(true),
+                                    child: Container(
+                                      width: 32,
+                                      height: 32,
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.tabPlaylistActive
+                                            .withValues(alpha: 0.2),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(
+                                          color: AppTheme.tabPlaylistActive
+                                              .withValues(alpha: 0.4),
+                                        ),
+                                      ),
+                                      child: const Icon(
+                                        Icons.chevron_left_rounded,
+                                        size: 20,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            if (policy.controlsLocation ==
+                                ControlsLocation.overlayOnVideo)
+                              Positioned(
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                child: _BottomControls(
+                                  position: _position,
+                                  duration: _duration,
+                                  playing: _playing,
+                                  volume: _volume,
+                                  isDragging: _isDragging,
+                                  dragValue: _dragValue,
+                                  onDragStart: (v) => setState(() {
+                                    _isDragging = true;
+                                    _dragValue = v;
+                                  }),
+                                  onDragUpdate: (v) =>
+                                      setState(() => _dragValue = v),
+                                  onDragEnd: (v) async {
+                                    setState(() {
+                                      _isDragging = false;
+                                      _dragValue = v;
+                                    });
+                                    await _seekToFraction(v);
+                                  },
+                                  onTogglePlayPause: _togglePlayPause,
+                                  onPrev: _prev,
+                                  onNext: _next,
+                                  onOpenFiles: _openFiles,
+                                  onOpenFolder: _openFolder,
+                                  onSeekRelative: _seekRelative,
+                                  onVolumeChanged: (v) {
+                                    setState(() => _volume = v);
+                                    _player.setVolume(v);
+                                  },
+                                ),
+                              ),
+                          ],
                         ),
-                    ],
-                  ),
                 ),
               ],
             ),
-            bottomNavigationBar: _BottomControls(
-              position: _position,
-              duration: _duration,
-              playing: _playing,
-              volume: _volume,
-              isDragging: _isDragging,
-              dragValue: _dragValue,
-              onDragStart: (v) => setState(() {
-                _isDragging = true;
-                _dragValue = v;
-              }),
-              onDragUpdate: (v) => setState(() => _dragValue = v),
-              onDragEnd: (v) async {
-                setState(() {
-                  _isDragging = false;
-                  _dragValue = v;
-                });
-                await _seekToFraction(v);
-              },
-              onTogglePlayPause: _togglePlayPause,
-              onPrev: _prev,
-              onNext: _next,
-              onOpenFiles: _openFiles,
-              onOpenFolder: _openFolder,
-              onSeekRelative: _seekRelative,
-              onVolumeChanged: (v) {
-                setState(() => _volume = v);
-                _player.setVolume(v);
-              },
-            ),
+            bottomNavigationBar:
+                policy.controlsLocation == ControlsLocation.bottomBar
+                ? _BottomControls(
+                    position: _position,
+                    duration: _duration,
+                    playing: _playing,
+                    volume: _volume,
+                    isDragging: _isDragging,
+                    dragValue: _dragValue,
+                    onDragStart: (v) => setState(() {
+                      _isDragging = true;
+                      _dragValue = v;
+                    }),
+                    onDragUpdate: (v) => setState(() => _dragValue = v),
+                    onDragEnd: (v) async {
+                      setState(() {
+                        _isDragging = false;
+                        _dragValue = v;
+                      });
+                      await _seekToFraction(v);
+                    },
+                    onTogglePlayPause: _togglePlayPause,
+                    onPrev: _prev,
+                    onNext: _next,
+                    onOpenFiles: _openFiles,
+                    onOpenFolder: _openFolder,
+                    onSeekRelative: _seekRelative,
+                    onVolumeChanged: (v) {
+                      setState(() => _volume = v);
+                      _player.setVolume(v);
+                    },
+                  )
+                : null,
           ),
         ),
       ),

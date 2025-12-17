@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../adaptive/adaptive_theme_tokens.dart';
 
 /// App-wide color palette and theme definitions
 class AppTheme {
@@ -247,18 +248,72 @@ class AppTheme {
       );
 
   // ========== DIMENSIONS ==========
+  // Static constants retained for backward compatibility, but prefer
+  // context-aware getters below that read from AdaptiveThemeTokens.
 
   static const double titleBarHeight = 40.0;
   static const double rightPaneWidth = 360.0;
-  static const double bottomControlsHeight = 94.0;
 
-  static const double controlButtonSizeSmall = 34.0;
-  static const double controlButtonSizeLarge = 42.0;
-  static const double controlIconSizeSmall = 22.0;
-  static const double controlIconSizeLarge = 28.0;
+  // Context-aware dynamic dimensions (AdaptiveThemeTokens)
+  static AdaptiveThemeTokens _tokens(BuildContext context) =>
+      Theme.of(context).extension<AdaptiveThemeTokens>() ??
+      AdaptiveThemeTokens.fallback;
 
-  static const double volumeSliderWidth = 130.0;
-  static const double volumeDisplayWidth = 38.0;
+  static double bottomControlsHeightOf(BuildContext context) =>
+      _tokens(context).bottomControlsHeight;
+
+  static double controlButtonSizeSmallOf(BuildContext context) =>
+      _tokens(context).controlButtonSmall;
+
+  static double controlButtonSizeLargeOf(BuildContext context) =>
+      _tokens(context).controlButtonLarge;
+
+  static double controlIconSizeSmallOf(BuildContext context) =>
+      _tokens(context).iconSmall;
+
+  static double controlIconSizeLargeOf(BuildContext context) =>
+      _tokens(context).iconLarge;
+
+  static double volumeSliderWidthOf(BuildContext context) =>
+      _tokens(context).volumeSliderWidth;
+
+  static double volumeDisplayWidthOf(BuildContext context) =>
+      _tokens(context).volumeDisplayWidth;
+
+  // Spacing getters derived from adaptive tokens
+  static double spaceXSOf(BuildContext context) => _tokens(context).spaceXS;
+
+  static double spaceSOf(BuildContext context) => _tokens(context).spaceS;
+
+  static double spaceMOf(BuildContext context) => _tokens(context).spaceM;
+
+  static double spaceLOf(BuildContext context) => _tokens(context).spaceL;
+
+  static double spaceXLOf(BuildContext context) => _tokens(context).spaceXL;
+
+  // Icon size getters derived from adaptive tokens
+  static double iconSmallOf(BuildContext context) => _tokens(context).iconSmall;
+
+  static double iconMediumOf(BuildContext context) =>
+      _tokens(context).iconMedium;
+
+  static double iconLargeOf(BuildContext context) => _tokens(context).iconLarge;
+
+  // Text size getters derived from adaptive tokens
+  static double textSmallOf(BuildContext context) => _tokens(context).textSmall;
+
+  static double textMediumOf(BuildContext context) =>
+      _tokens(context).textMedium;
+
+  static double textLargeOf(BuildContext context) => _tokens(context).textLarge;
+
+  static double textXLOf(BuildContext context) => _tokens(context).textXL;
+
+  static double listRowHeightOf(BuildContext context) =>
+      _tokens(context).listRowHeight;
+
+  static double rightPanelTabsHeightOf(BuildContext context) =>
+      _tokens(context).rightPanelTabsHeight;
 
   static const EdgeInsets titleBarPadding = EdgeInsets.symmetric(
     horizontal: 12,
