@@ -8,15 +8,19 @@ import 'package:flutter_context_menu/flutter_context_menu.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:provider/provider.dart';
+import 'package:screen_brightness/screen_brightness.dart';
 import '../adaptive/adaptive_layout_policy.dart';
+import '../adaptive/adaptive_theme_tokens.dart';
 import '../adaptive/breakpoints.dart';
 
 import '../models/MediaEntry.dart';
 import '../models/enums.dart';
+import '../models/subtitle_config.dart';
 import 'format.dart';
 import 'theme.dart';
 import '../state/player_ui_layout_state.dart';
 import '../services/screenshot_service.dart';
+import '../services/permission_service.dart';
 part '../widgets/TopTitleBar.dart';
 part '../widgets/TitleBarPill.dart';
 part '../widgets/VideoPane.dart';
@@ -32,6 +36,10 @@ part '../widgets/BottomControls.dart';
 part '../widgets/CtlButtons.dart';
 part '../intents/Intents.dart';
 part '../widgets/ContextMenu.dart';
+part '../widgets/SubtitleCustomizerDialog.dart';
+part '../functions/videoplayer_funcs.dart';
+
+final GlobalKey<VideoState> videoKey = GlobalKey<VideoState>();
 
 class PlayerHomePage extends StatefulWidget {
   const PlayerHomePage({super.key});
@@ -65,6 +73,8 @@ class _PlayerHomePageState extends State<PlayerHomePage> {
   String? _browserDirectory;
   List<MediaEntry> _browserItems = const <MediaEntry>[];
 
+  SubtitleConfig _subtitleConfig = SubtitleConfig.defaultConfig;
+
   StreamSubscription<Duration>? _posSub;
   StreamSubscription<Duration>? _durSub;
   StreamSubscription<bool>? _playingSub;
@@ -91,6 +101,42 @@ class _PlayerHomePageState extends State<PlayerHomePage> {
 
     // Set initial volume
     _player.setVolume(_volume);
+
+    // Request Android permissions for media file access
+    _requestAndroidPermissions();
+  }
+
+  /// Request necessary Android permissions for reading media files
+  Future<void> _requestAndroidPermissions() async {
+    if (!Platform.isAndroid) {
+      return; // No permissions needed on non-Android platforms
+    }
+
+    final permissionsGranted =
+        await PermissionService.requestAllStoragePermissions();
+
+    if (!permissionsGranted && mounted) {
+      _showPermissionDeniedSnackBar();
+    }
+  }
+
+  /// Show a snackbar when permissions are denied
+  void _showPermissionDeniedSnackBar() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text(
+          'Storage permissions are required to access media files',
+        ),
+        action: SnackBarAction(
+          label: 'Settings',
+          onPressed: () async {
+            // Open app settings
+            await PermissionService.openAppSettings();
+          },
+        ),
+        duration: const Duration(seconds: 5),
+      ),
+    );
   }
 
   @override
@@ -341,41 +387,18 @@ class _PlayerHomePageState extends State<PlayerHomePage> {
   }
 
   Future<void> _customizeSubtitle() async {
-    // Show a dialog for customizing subtitles
+    // Show subtitle customization dialog
     if (!mounted) return;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Customize Subtitles'),
-        content: const SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Subtitle customization dialog will be implemented here.',
-                style: TextStyle(fontSize: 14),
-              ),
-              SizedBox(height: 16),
-              Text(
-                'This would include options for:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text('• Font size'),
-              Text('• Font color'),
-              Text('• Background color'),
-              Text('• Text alignment'),
-              Text('• Padding'),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-        ],
+      builder: (context) => _SubtitleCustomizerDialog(
+        initialConfig: _subtitleConfig,
+        onConfigChanged: (config) {
+          setState(() {
+            _subtitleConfig = config;
+          });
+        },
       ),
     );
   }
@@ -489,6 +512,7 @@ class _PlayerHomePageState extends State<PlayerHomePage> {
                           children: <Widget>[
                             Expanded(
                               child: _VideoPane(
+                                vidKey: videoKey,
                                 videoController: _videoController,
                                 title: _windowTitle,
                                 onOpenFile: _openFiles,
@@ -501,6 +525,7 @@ class _PlayerHomePageState extends State<PlayerHomePage> {
                                 getAudioTracks: _getAudioTracks,
                                 onSelectSubtitleTrack: _selectSubtitleTrack,
                                 onSelectAudioTrack: _selectAudioTrack,
+                                subtitleConfig: _subtitleConfig,
                               ),
                             ),
                             if (layout.rightPanelVisible &&
@@ -636,6 +661,7 @@ class _PlayerHomePageState extends State<PlayerHomePage> {
                           children: <Widget>[
                             Positioned.fill(
                               child: _VideoPane(
+                                vidKey: videoKey,
                                 videoController: _videoController,
                                 title: _windowTitle,
                                 onOpenFile: _openFiles,
@@ -648,6 +674,7 @@ class _PlayerHomePageState extends State<PlayerHomePage> {
                                 getAudioTracks: _getAudioTracks,
                                 onSelectSubtitleTrack: _selectSubtitleTrack,
                                 onSelectAudioTrack: _selectAudioTrack,
+                                subtitleConfig: _subtitleConfig,
                               ),
                             ),
                             if (layout.rightPanelVisible)
