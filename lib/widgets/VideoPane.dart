@@ -151,20 +151,7 @@ class _VideoPaneState extends State<_VideoPane> {
                     _seekPreviewPosition = null;
                   });
                 },
-                onDoubleTapDown: (details) {
-                  final double screenWidth = MediaQuery.of(context).size.width;
-                  if (details.globalPosition.dx < screenWidth / 2) {
-                    final pos =
-                        widget.videoController.player.state.position -
-                        const Duration(seconds: 10);
-                    widget.videoController.player.seek(pos);
-                  } else {
-                    final pos =
-                        widget.videoController.player.state.position +
-                        const Duration(seconds: 10);
-                    widget.videoController.player.seek(pos);
-                  }
-                },
+                onDoubleTap: () => toggleFullscreen(context),
               ),
             ),
             // Visual feedback overlay
@@ -188,29 +175,30 @@ class _VideoPaneState extends State<_VideoPane> {
                   ),
                 ),
               ),
-            Positioned(
-              right: 12,
-              bottom: 12,
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => toggleFullScreen(context),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    padding: EdgeInsets.all(AppTheme.spaceSOf(context)),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.fullscreen,
-                      color: Colors.white,
-                      size: 28,
+            if (!(Platform.isAndroid || Platform.isIOS))
+              Positioned(
+                right: 12,
+                bottom: 12,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => toggleFullscreen(context),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: EdgeInsets.all(AppTheme.spaceSOf(context)),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.fullscreen,
+                        color: Colors.white,
+                        size: 28,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
             Positioned(
               left: 12,
               top: 10,
